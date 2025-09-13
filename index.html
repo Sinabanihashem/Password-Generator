@@ -1,0 +1,336 @@
+<!DOCTYPE html><html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>رمزساز | Password Generator</title>
+  <meta name="description" content="ساخت رمزهای قوی، ارزیابی قدرت، محاسبه آنتروپی و زمان تقریبی شکستن—تماماً سمت کاربر" />
+  <style>
+    :root{
+      --bg: #0f1220; --card:#151931; --muted:#8a93b2; --text:#eaf0ff; --acc:#7c5cff; --acc-2:#22c55e;
+      --shadow: 0 10px 25px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Iran Sans", "Vazirmatn", sans-serif;
+      background: radial-gradient(1200px 800px at 80% -10%, rgba(124,92,255,.25), transparent 60%),
+                  radial-gradient(900px 600px at -10% 110%, rgba(34,197,94,.25), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      padding:16px;
+    }
+    .wrap{max-width:900px; margin:0 auto;}
+    .card{background:var(--card); border-radius:24px; box-shadow:var(--shadow); overflow:hidden}
+    header{padding:20px 20px 0}
+    h1{margin:0 0 6px; font-size:clamp(20px, 3.2vw, 28px)}
+    .subtitle{color:var(--muted); margin:0 0 16px; font-size:14px}
+    .row{display:grid; gap:16px; grid-template-columns: 1fr; padding:20px}
+    @media (min-width: 840px){ .row{grid-template-columns: 1.2fr .8fr} }
+    .out{display:flex; gap:10px; align-items:stretch}
+    .out input{flex:1; background:#0c1024; border:1px solid #23284c; color:var(--text); border-radius:14px; padding:14px 12px; font-size:16px}
+    .btn{border:0; border-radius:14px; padding:12px 14px; font-weight:600; cursor:pointer; transition:.2s transform ease, .2s opacity ease}
+    .btn:hover{transform: translateY(-1px)}
+    .btn:active{transform: translateY(0)}
+    .btn-acc{background:linear-gradient(135deg, var(--acc), #5a3bff); color:white}
+    .btn-ghost{background:transparent; color:var(--text); border:1px solid #2a2f57}
+
+    .panel{background:#0f1430; border:1px solid #23284c; border-radius:18px; padding:16px}
+    .panel h3{margin:0 0 10px; font-size:16px}
+    .grid{display:grid; gap:10px; grid-template-columns:repeat(2, minmax(0,1fr))}
+    .grid .full{grid-column:1 / -1}
+    label{display:flex; align-items:center; gap:10px; font-size:14px; color:#d8defa}
+    input[type="checkbox"]{width:18px; height:18px}
+    .slider{display:grid; gap:6px}
+    .slider input[type="range"]{width:100%}
+
+    .strength{height:10px; background:#1a2042; border:1px solid #23284c; border-radius:999px; overflow:hidden}
+    .bar{height:100%; width:0%}
+
+    .stats{display:grid; gap:8px; grid-template-columns:repeat(2, minmax(0,1fr)); margin-top:10px}
+    .stat{background:#0c1024; border:1px solid #23284c; border-radius:12px; padding:10px}
+    .stat b{display:block; font-size:12px; color:var(--muted)}
+    .stat span{font-size:14px}
+
+    footer{padding:0 20px 20px; color:var(--muted); font-size:12px}
+    .small{font-size:12px; color:var(--muted)}
+    .flex{display:flex; gap:10px; align-items:center}
+
+    /* 📱 بهینه‌سازی موبایل */
+    @media (max-width: 600px){
+      body{padding:12px;}
+      .card{border-radius:16px;}
+      .row{grid-template-columns:1fr !important;}
+      .out{flex-direction:column;}
+      .out input{font-size:14px; padding:12px;}
+      .btn{width:100%;}
+      .stats{grid-template-columns:1fr;}
+      .grid{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <h1>🔐 رمزساز</h1>
+        <p class="subtitle">ساخت رمزهای تصادفیِ قوی + ارزیابی قدرت، محاسبه آنتروپی، زمان تقریبی شکستن و کپی سریع — تماماً روی مرورگر شما.</p>
+      </header>
+      <div class="row">
+        <section class="panel">
+          <h3>خروجی</h3>
+          <div class="out">
+            <input id="output" type="text" placeholder="اینجا رمز تولید می‌شود…" readonly>
+            <button class="btn btn-acc" id="btn-generate" title="تولید رمز جدید">تولید</button>
+            <button class="btn btn-ghost" id="btn-copy" title="کپی در کلیپ‌بورد">کپی</button>
+          </div>
+
+          <div class="strength" aria-label="نوار قدرت رمز">
+            <div class="bar" id="bar"></div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><b>آنتروپی تقریبی</b><span id="entropy">0 بیت</span></div>
+            <div class="stat"><b>قدرت</b><span id="label">—</span></div>
+            <div class="stat"><b>زمان شکستن (آنلاین)</b><span id="crack-online">—</span></div>
+            <div class="stat"><b>زمان شکستن (آفلاین)</b><span id="crack-offline">—</span></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>تنظیمات</h3>
+          <div class="grid">
+            <div class="slider full">
+              <label for="len">طول رمز: <span id="len-val">16</span></label>
+              <input id="len" type="range" min="6" max="64" value="16" step="1">
+            </div>
+            <label><input type="checkbox" id="lower" checked> حروف کوچک (a–z)</label>
+            <label><input type="checkbox" id="upper" checked> حروف بزرگ (A–Z)</label>
+            <label><input type="checkbox" id="digits" checked> ارقام (0–9)</label>
+            <label><input type="checkbox" id="symbols"> نمادها (!@#$…)</label>
+            <label class="full"><input type="checkbox" id="no-amb"> حذف کاراکترهای مشابه (O/0, l/1 و …)</label>
+            <label class="full"><input type="checkbox" id="ensure-all" checked> تضمین حضور حداقل یکی از هر گروه انتخاب‌شده</label>
+          </div>
+          <p class="small">همه‌چیز روی دستگاه شما انجام می‌شود؛ هیچ داده‌ای ارسال نمی‌گردد.</p>
+        </section>
+      </div>
+
+      <footer>
+       طراحی شده توسط میر سینا بنی هاشم
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const el = (id)=>document.getElementById(id);
+    const out = el('output');
+    const bar = el('bar');
+    const entropyEl = el('entropy');
+    const labelEl = el('label');
+    const crackOnEl = el('crack-online');
+    const crackOffEl = el('crack-offline');
+
+    const controls = {
+      len: el('len'), lower: el('lower'), upper: el('upper'), digits: el('digits'), symbols: el('symbols'),
+      noAmb: el('no-amb'), ensureAll: el('ensure-all')
+    };
+
+    const pools = {
+      lower: 'abcdefghijklmnopqrstuvwxyz',
+      upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      digits: '0123456789',
+      symbols: '!@#$%^&*()_+[]{}|;:,.<>?~-=\\/`'
+    };
+
+    const ambiguous = new Set('O0oIl1|S5B8Z2gq9'.split(''));
+
+    function buildPool(){
+      let pool = '';
+      if(controls.lower.checked) pool += pools.lower;
+      if(controls.upper.checked) pool += pools.upper;
+      if(controls.digits.checked) pool += pools.digits;
+      if(controls.symbols.checked) pool += pools.symbols;
+      if(controls.noAmb.checked){
+        pool = [...pool].filter(ch => !ambiguous.has(ch)).join('');
+      }
+      return pool;
+    }
+
+    function getCrypto(){
+      return (self.crypto && self.crypto.getRandomValues) ? self.crypto : null;
+    }
+
+    function randomInt(max){
+      const crypto = getCrypto();
+      if(crypto){
+        const arr = new Uint32Array(1);
+        crypto.getRandomValues(arr);
+        return arr[0] % max;
+      }
+      return Math.floor(Math.random()*max);
+    }
+
+    function shuffle(str){
+      const a = [...str];
+      for(let i=a.length-1;i>0;i--){
+        const j = randomInt(i+1);
+        [a[i],a[j]] = [a[j],a[i]];
+      }
+      return a.join('');
+    }
+
+    function generate(){
+      const length = parseInt(controls.len.value,10);
+      const pool = buildPool();
+      if(pool.length === 0){
+        out.value = '';
+        updateMetrics('—');
+        return;
+      }
+
+      let pwd = '';
+      const chosenGroups = [];
+      if(controls.ensureAll.checked){
+        if(controls.lower.checked) chosenGroups.push(pools.lower);
+        if(controls.upper.checked) chosenGroups.push(pools.upper);
+        if(controls.digits.checked) chosenGroups.push(pools.digits);
+        if(controls.symbols.checked) chosenGroups.push(pools.symbols);
+      }
+
+      const pre = [];
+      for(const g of chosenGroups){
+        let chars = g;
+        if(controls.noAmb.checked){
+          chars = [...g].filter(ch => !ambiguous.has(ch)).join('');
+        }
+        if(chars.length){
+          pre.push(chars[randomInt(chars.length)]);
+        }
+      }
+
+      const remaining = Math.max(0, length - pre.length);
+      for(let i=0;i<remaining;i++){
+        pwd += pool[randomInt(pool.length)];
+      }
+      pwd = shuffle(pwd + pre.join(''));
+
+      out.value = pwd;
+      updateMetrics(pwd, pool.length);
+    }
+
+    function updateMetrics(pwd, poolSize){
+      if(!pwd || !poolSize){
+        bar.style.width = '0%'; bar.style.background = 'linear-gradient(90deg,#3b82f6,#60a5fa)';
+        entropyEl.textContent = '0 بیت'; labelEl.textContent = '—';
+        crackOnEl.textContent = '—'; crackOffEl.textContent = '—';
+        return;
+      }
+      const len = pwd.length;
+      const entropy = len * Math.log2(poolSize);
+      entropyEl.textContent = entropy.toFixed(1) + ' بیت';
+
+      let pct = Math.min(100, Math.round((entropy/128)*100));
+      bar.style.width = pct + '%';
+      const gradient = pct < 30 ? '#ef4444,#f59e0b' : pct < 60 ? '#f59e0b,#22c55e' : '#22c55e,#16a34a';
+      bar.style.background = 'linear-gradient(90deg,'+gradient+')';
+
+      let label = 'ضعیف';
+      if(entropy >= 60 && entropy < 90) label = 'متوسط';
+      else if(entropy >= 90 && entropy < 120) label = 'قوی';
+      else if(entropy >= 120) label = 'فوق‌العاده';
+      labelEl.textContent = label;
+
+      const guesses = Math.pow(poolSize, len) / 2;
+      const onlineRate = 1e6;
+      const offlineRate = 1e10;
+      crackOnEl.textContent = prettyTime(guesses / onlineRate);
+      crackOffEl.textContent = prettyTime(guesses / offlineRate);
+    }
+
+    function prettyTime(seconds){
+      if(!isFinite(seconds) || seconds <= 0) return 'لحظه‌ای';
+      const units = [
+        ['ثانیه', 60], ['دقیقه', 60], ['ساعت', 24], ['روز', 365], ['سال', 1000]
+      ];
+      let val = seconds;
+      let i = 0;
+      for(; i<units.length-1 && val >= units[i][1]; i++){
+        val = val / units[i][1];
+      }
+      return (val>100 ? Math.round(val) : val.toFixed(1)) + ' ' + units[i][0];
+    }
+
+	function copy() {
+  if (!out.value) return;
+
+  // استفاده مستقیم از navigator.clipboard
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(out.value)
+      .then(() => showMessage('کپی شد!'))
+      .catch(() => fallbackCopy());
+  } else {
+    fallbackCopy();
+  }
+}
+
+function fallbackCopy() {
+  const textarea = document.createElement('textarea');
+  textarea.value = out.value;
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) showMessage('کپی شد!');
+    else alert('مرورگر شما اجازهٔ کپی خودکار نمی‌دهد. لطفاً متن را دستی کپی کنید.');
+  } catch {
+    alert('مرورگر شما اجازهٔ کپی خودکار نمی‌دهد. لطفاً متن را دستی کپی کنید.');
+  }
+
+  document.body.removeChild(textarea);
+}
+
+function showMessage(msg) {
+  const b = document.createElement('div');
+  b.textContent = msg;
+  b.style.position = 'fixed';
+  b.style.bottom = '18px';
+  b.style.right = '18px';
+  b.style.background = 'rgba(15,20,48,.95)';
+  b.style.border = '1px solid #23284c';
+  b.style.padding = '10px 14px';
+  b.style.borderRadius = '12px';
+  b.style.boxShadow = '0 10px 25px rgba(0,0,0,.35)';
+  b.style.zIndex = '999';
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 2000);
+}
+
+// اتصال به دکمه
+el('btn-copy').addEventListener('click', copy);
+
+    function flash(msg){
+      const b = document.createElement('div');
+      b.textContent = msg;
+      b.style.position = 'fixed'; b.style.bottom = '18px'; b.style.right = '18px';
+      b.style.background = 'rgba(15,20,48,.95)'; b.style.border = '1px solid #23284c';
+      b.style.padding = '10px 14px'; b.style.borderRadius = '12px'; b.style.boxShadow = 'var(--shadow)';
+      b.style.zIndex = '999';
+      document.body.appendChild(b);
+      setTimeout(()=>b.remove(), 1500);
+    }
+
+    controls.len.addEventListener('input', ()=>{
+      el('len-val').textContent = controls.len.value; generate();
+    });
+    for(const id of ['lower','upper','digits','symbols','no-amb','ensure-all']){
+      controls[id].addEventListener('change', generate);
+    }
+    el('btn-generate').addEventListener('click', generate);
+    el('btn-copy').addEventListener('click', copy);
+
+    generate();
+  </script>
+</body>
+</html>
